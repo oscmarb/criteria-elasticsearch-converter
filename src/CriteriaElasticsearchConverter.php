@@ -9,6 +9,8 @@ use Oscmarb\Criteria\Filter\Filter;
 use Oscmarb\Criteria\Filter\Logic\AndFilter;
 use Oscmarb\Criteria\Filter\Logic\OrFilter;
 use Oscmarb\Criteria\Order\CriteriaOrders;
+use Oscmarb\Criteria\Pagination\CriteriaLimit;
+use Oscmarb\Criteria\Pagination\CriteriaOffset;
 
 class CriteriaElasticsearchConverter
 {
@@ -51,58 +53,80 @@ class CriteriaElasticsearchConverter
         $limit = $criteria->limit();
 
         if (null !== $offset) {
-            $this->body['from'] = $offset->value();
+            $this->body = array_merge(
+                $this->body,
+                $this->formatOffset($offset)
+            );
         }
 
         if (null !== $limit) {
-            $this->body['size'] = $limit->value();
+            $this->body = array_merge(
+                $this->body,
+                $this->formatLimit($limit)
+            );
         }
 
-        $query = $this->formatQuery($filter);
+        $query = $this->formatFilter($filter);
 
         if (false === array_key_exists('bool', $query)) {
             $query = ['bool' => ['must' => $query]];
         }
 
+        if (false === empty($query)) {
+            $this->body = array_merge(
+                $this->body,
+                ['query' => $query]
+            );
+        }
+
         return array_merge(
             $this->body,
-            ['query' => $query],
             $this->formatOrders($criteria->orders())
         );
     }
 
-    protected function formatQuery(Filter $filter): array
+    protected function formatOffset(CriteriaOffset $offset): array
+    {
+        return ['from' => $offset->value()];
+    }
+
+    protected function formatLimit(CriteriaLimit $limit): array
+    {
+        return ['size' => $limit->value()];
+    }
+
+    protected function formatFilter(Filter $filter): array
     {
         if (true === $filter instanceof AndFilter) {
-            return $this->formatAndFilter($filter);
+            return $this->formatAnd($filter);
         }
 
         if (true === $filter instanceof OrFilter) {
-            return $this->formatOrFilter($filter);
+            return $this->formatOr($filter);
         }
 
         if (true === $filter instanceof ConditionFilter) {
-            return $this->formatConditionFilter($filter);
+            return $this->formatCondition($filter);
         }
 
         throw new \RuntimeException('Unknown filter type');
     }
 
-    protected function formatAndFilter(AndFilter $filter): array
+    protected function formatAnd(AndFilter $filter): array
     {
         return [
-            'bool' => ['must' => array_map(fn(Filter $filter) => $this->formatQuery($filter), $filter->filters())],
+            'bool' => ['must' => array_map(fn(Filter $filter) => $this->formatFilter($filter), $filter->filters())],
         ];
     }
 
-    protected function formatOrFilter(OrFilter $filter): array
+    protected function formatOr(OrFilter $filter): array
     {
         return [
-            'bool' => ['should' => array_map(fn(Filter $filter) => $this->formatQuery($filter), $filter->filters())],
+            'bool' => ['should' => array_map(fn(Filter $filter) => $this->formatFilter($filter), $filter->filters())],
         ];
     }
 
-    protected function formatConditionFilter(ConditionFilter $filter): array
+    protected function formatCondition(ConditionFilter $filter): array
     {
         $value = $filter->value()->value();
         $field = $this->mapFieldValue($filter->field()->value());
