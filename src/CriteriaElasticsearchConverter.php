@@ -34,7 +34,7 @@ class CriteriaElasticsearchConverter
     /**
      * @param array<string, string> $criteriaToMapFields
      */
-    private function __construct(string $index, private array $criteriaToMapFields)
+    protected function __construct(string $index, private array $criteriaToMapFields)
     {
         $this->body = ['index' => $index];
     }

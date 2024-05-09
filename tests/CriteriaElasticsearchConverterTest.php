@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 final class CriteriaElasticsearchConverterTest extends TestCase
 {
-    public function testShouldConvertCriteriaToSqlQuery(): void
+    public function testShouldConvertCriteriaToElasticSearchQuery(): void
     {
         $fieldMappings = [
             'childField' => 'first_child_table.field',
